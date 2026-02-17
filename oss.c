@@ -66,12 +66,16 @@ int main(int argc, char *argv[]) {
 
 	printf("OSS: Clock initialized to %d:%d\n", clock -> seconds, clock -> nanoseconds);
 
-	//Added fork and launch one worker
-	pid_t pid = fork();
+	int total = 0;
+	int running = 0;
+	
+	//Phase 1: Launch initial burst up to simul limit
+	while (running < s && total < n) {
+		pid_t pid = fork();
 
 	if (pid < 0) {
 		perror("fork failed");
-		return 1;
+		break;
 	}
 
 	else if (pid == 0) {
@@ -89,21 +93,56 @@ int main(int argc, char *argv[]) {
 	}
 
 	else {
-		printf("OSS: Launched worker PID %d\n", pid);
+		printf("OSS: Launched worker %d (PID %d) at time %d:%d\n", total + 1, pid, clock -> seconds, clock -> nanoseconds);
+		running++;
+		total++;
+	}
+}
+
+	while (total < n || running > 0) {
+		clock -> nanoseconds += 10000000;
+		if (clock -> nanoseconds >= 1000000000) {
+			clock -> seconds++;
+			clock -> nanoseconds -= 1000000000;
+	}
 
 		int status;
-		while (waitpid(pid, &status, WNOHANG) == 0) {
-			clock -> nanoseconds += 10000000;
-			if (clock -> nanoseconds >= 1000000000) {
-				clock -> seconds++;
-				clock -> nanoseconds -= 1000000000;
+		pid_t finished = waitpid(-1, &status, WNOHANG);
+
+		if (finished > 0) {
+			printf("OSS: Worker PID %d finnished at time %d:%d\n", finished, clock -> seconds, clock -> nanoseconds);
+			running--;
+
+		if (total < n) {
+			pid_t pid = fork();
+
+			if (pid < 0) {
+				perror("fork failed");
+			}
+			else if (pid == 0) {
+				int secs = (int)t;
+				int nanos = (int)((t - secs) * 1000000000);
+
+				char sec_str[20], nano_str[20];
+				snprintf(sec_str, sizeof(sec_str), "%d", secs);
+				snprintf(nano_str, sizeof(nano_str), "%d", nanos);
+
+				execl(".worker", "worker", sec_str, nano_str, NULL);
+				perror("execl failed");
+				exit(1);
+			}
+			else {
+				printf("OSS: Launched worker %d (PID %d) at time %d:%d\n", total + 1, pid, clock -> seconds, clock -> nanoseconds);
+				running++;
+				total++;
 			}
 		}
-
-		
-		printf("OSS: Worker finished\n");
-
 	}
+}
+
+printf("\nOSS: All %d workers completed\n", total);
+printf("OSS: Final clock time: %d:%d\n", clock -> seconds, clock -> nanoseconds);
+
 
 	shmdt(clock);
 	shmctl(shmid, IPC_RMID, NULL);
