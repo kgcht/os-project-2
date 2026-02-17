@@ -91,16 +91,16 @@ int main(int argc, char *argv[]) {
 	else {
 		printf("OSS: Launched worker PID %d\n", pid);
 
-		for (int j = 0; j < 10; j++) {
-			clock -> nanoseconds += 100000000;
+		int status;
+		while (waitpid(pid, &status, WNOHANG) == 0) {
+			clock -> nanoseconds += 10000000;
 			if (clock -> nanoseconds >= 1000000000) {
 				clock -> seconds++;
 				clock -> nanoseconds -= 1000000000;
 			}
 		}
 
-
-		wait(NULL);
+		
 		printf("OSS: Worker finished\n");
 
 	}
