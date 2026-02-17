@@ -1,4 +1,3 @@
-cat > Makefile << 'EOF'
 CC = gcc
 CFLAGS = -Wall -g
 
@@ -14,4 +13,3 @@ clean:
 	rm -f oss worker *.o
 
 .PHONY: all clean
-EOF
