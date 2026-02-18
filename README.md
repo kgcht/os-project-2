@@ -4,7 +4,7 @@
 
 **Date:** February 18, 2026
 
-**Environmnet:** macOS (Darwin), using gcc compiler and terminal
+**Environment:** macOS (Darwin), using gcc compiler and terminal
 
 ## Project Description
 
@@ -40,12 +40,15 @@ make
 ## Examples:
 
 **Launch 10 workers, max 3 simultaneous, each runs 5 simulated seconds**
+
 ./oss -n 10 -s 3 -t 5
 
 **Launch 20 workers with 2-second launch intervals**
+
 ./oss -n 20 -s 5 -t 3 -i 2
 
 **Show help**
+
 ./oss -h
 
 # How to Clean
