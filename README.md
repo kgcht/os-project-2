@@ -37,15 +37,15 @@ make
 -i interval: Minimum simulated time interval between launches in seconds (default: 0.1)
 
 
-# Examples:
+## Examples:
 
-## Launch 10 workers, max 3 simultaneous, each runs 5 simulated seconds
+**Launch 10 workers, max 3 simultaneous, each runs 5 simulated seconds**
 ./oss -n 10 -s 3 -t 5
 
-## Launch 20 workers with 2-second launch intervals
+**Launch 20 workers with 2-second launch intervals**
 ./oss -n 20 -s 5 -t 3 -i 2
 
-## Show help
+**Show help**
 ./oss -h
 
 # How to Clean
