@@ -4,6 +4,7 @@
 #include <sys/ipc.h>
 #include <sys/shm.h>
 #include <sys/wait.h>
+#include <signal.h>
 
 typedef struct {
 	int seconds;
@@ -20,6 +21,10 @@ typedef struct {
 } PCB;
 
 #define MAX_PROCESSES 20
+
+int global_shmid = -1;
+SystemClock *global_clock = NULL;
+PCB global_processTable[MAX_PROCESSES];
 
 void print_help(char *prog) {
 	printf("Usage: %s [-h] [-n proc] [-s simul] [-t timelimit] [-i interval]\n", prog);
@@ -46,6 +51,28 @@ void print_process_table(PCB processTable[], SystemClock *clock) {
 			processTable[i].endingTimeNano);
 	}
 	printf("\n");
+}
+
+void timeout_handler(int sig) {
+	printf("\n\nOSS: 60 seconds elapsed - terminating all processes\n");
+
+	for (int i = 0; i < MAX_PROCESSES; i++) {
+		if (global_processTable[i].occupied == 1) {
+			printf("OSS: Killing worker PID %d\n", global_processTable[i].pid);
+			kill(global_processTable[i].pid, SIGKILL);
+			global_processTable[i].occupied = 0;
+	}
+}
+
+	if (global_clock != NULL) {
+		shmdt(global_clock);
+	}
+	if (global_shmid != -1) {
+		shmctl(global_shmid, IPC_RMID, NULL);
+	}
+
+	printf("OSS: Timeout - cleaned up and terminating\n");
+	exit(0);
 }
 
 int main(int argc, char *argv[]) {
@@ -93,12 +120,17 @@ int main(int argc, char *argv[]) {
 	clock -> seconds = 0;
 	clock -> nanoseconds = 0;
 
+	global_shmid = shmid;
+	global_clock = clock;
+
+	signal(SIGALRM, timeout_handler);
+	alarm(60);
+
 	printf("OSS: Clock initialized to %d:%d\n", clock -> seconds, clock -> nanoseconds);
 
 	int total = 0;
 	int running = 0;
 	
-
 	PCB processTable[MAX_PROCESSES];
 	for (int i = 0; i < MAX_PROCESSES; i++) {
 		processTable[i].occupied = 0;
@@ -107,6 +139,10 @@ int main(int argc, char *argv[]) {
 		processTable[i].startNano = 0;
 		processTable[i].endingTimeSeconds = 0;
 		processTable[i].endingTimeNano = 0;
+	}
+
+	for (int i = 0; i < MAX_PROCESSES; i++) {
+		global_processTable[i] = processTable[i];
 	}
 
 	int lastPrintSecond = 0;
@@ -162,6 +198,8 @@ int main(int argc, char *argv[]) {
 	}
 }
 
+		global_processTable[slot] = processTable[slot];
+
 		running++;
 		total++;
 	}
@@ -191,6 +229,7 @@ int main(int argc, char *argv[]) {
 		for (int k = 0; k < MAX_PROCESSES; k++) {
 			if (processTable[k].pid == finished) {
 			  processTable[k].occupied = 0;
+			  global_processTable[k].occupied = 0;
 			  break;
 		}
 	}
@@ -215,6 +254,34 @@ int main(int argc, char *argv[]) {
 			}
 			else {
 				printf("OSS: Launched worker %d (PID %d) at time %d:%d\n", total + 1, pid, clock -> seconds, clock -> nanoseconds);
+				
+				int slot = -1;
+				for (int m = 0; m < MAX_PROCESSES; m++) {
+					if (processTable[m].occupied == 0) {
+						slot = m;
+						break;
+					}
+				}
+
+				if (slot != -1) {
+					processTable[slot].occupied = 1;
+					processTable[slot].pid = pid;
+					processTable[slot].startSeconds = clock -> seconds;
+					processTable[slot].startNano = clock -> nanoseconds;
+
+					int secs = (int)t;
+					int nanos = (int)((t - secs) * 1000000000);
+					processTable[slot].endingTimeSeconds = clock -> seconds + secs;
+					processTable[slot].endingTimeNano = clock -> nanoseconds + nanos;
+
+					if (processTable[slot].endingTimeNano >= 1000000000) {
+					  processTable[slot].endingTimeSeconds++;
+					  processTable[slot].endingTimeNano -= 1000000000;
+					}
+
+					global_processTable[slot] = processTable[slot];
+				}
+
 				running++;
 				total++;
 			}
