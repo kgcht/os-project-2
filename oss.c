@@ -10,6 +10,17 @@ typedef struct {
 	int nanoseconds;
 } SystemClock;
 
+typedef struct {
+	int occupied;
+	pid_t pid;
+	int startSeconds;
+	int startNano;
+	int endingTimeSeconds;
+	int endingTimeNano;
+} PCB;
+
+#define MAX_PROCESSES 20
+
 void print_help(char *prog) {
 	printf("Usage: %s [-h] [-n proc] [-s simul] [-t timelimit] [-i interval]\n", prog);
 	printf("  -h	Show this help\n");
@@ -17,6 +28,24 @@ void print_help(char *prog) {
 	printf("  -s simul	Max simultaneos processes (default: 3)\n");
 	printf("  -t timelimit	Max time for each child in seconds (default: 1)\n");
 	printf("  -i interval	Launch interval in seconds (default: 0.1)\n");
+}
+
+void print_process_table(PCB processTable[], SystemClock *clock) {
+	printf("\nOSS PID:%d SysClockS: %d SysclockNano: %d\n", getpid(), clock -> seconds, clock -> nanoseconds);
+	printf("Process Table:\n");
+	printf("Entry Occupied PID	StartS StartN EndingTimeS EndingTimeNano\n");
+
+	for (int i = 0; i < MAX_PROCESSES; i++) {
+		printf("%-5d %-8d %-6d %-6d %-6d %-11d %-14d\n",
+			i,
+			processTable[i].occupied,
+			processTable[i].pid,
+			processTable[i].startSeconds,
+			processTable[i].startNano,
+			processTable[i].endingTimeSeconds,
+			processTable[i].endingTimeNano);
+	}
+	printf("\n");
 }
 
 int main(int argc, char *argv[]) {
@@ -69,6 +98,19 @@ int main(int argc, char *argv[]) {
 	int total = 0;
 	int running = 0;
 	
+
+	PCB processTable[MAX_PROCESSES];
+	for (int i = 0; i < MAX_PROCESSES; i++) {
+		processTable[i].occupied = 0;
+		processTable[i].pid = 0;
+		processTable[i].startSeconds = 0;
+		processTable[i].startNano = 0;
+		processTable[i].endingTimeSeconds = 0;
+		processTable[i].endingTimeNano = 0;
+	}
+
+	int lastPrintSecond = 0;
+
 	//Phase 1: Launch initial burst up to simul limit
 	while (running < s && total < n) {
 		pid_t pid = fork();
@@ -94,6 +136,32 @@ int main(int argc, char *argv[]) {
 
 	else {
 		printf("OSS: Launched worker %d (PID %d) at time %d:%d\n", total + 1, pid, clock -> seconds, clock -> nanoseconds);
+		
+		int slot = -1;
+		for (int m = 0; m < MAX_PROCESSES; m++) {
+			if (processTable[m].occupied == 0) {
+			slot = m;
+			break;
+		}
+	}
+
+	if (slot != -1) {
+		processTable[slot].occupied = 1;
+		processTable[slot].pid = pid;
+		processTable[slot].startSeconds = clock -> seconds;
+		processTable[slot].startNano = clock -> nanoseconds;
+
+		int secs = (int)t;
+		int nanos = (int)((t - secs) * 1000000000);
+		processTable[slot].endingTimeSeconds = clock -> seconds + secs;
+		processTable[slot].endingTimeNano = clock -> nanoseconds + nanos;
+
+		if (processTable[slot].endingTimeNano >= 1000000000) {
+		  processTable[slot].endingTimeSeconds++;
+		  processTable[slot].endingTimeNano -= 1000000000;
+	}
+}
+
 		running++;
 		total++;
 	}
@@ -106,12 +174,26 @@ int main(int argc, char *argv[]) {
 			clock -> nanoseconds -= 1000000000;
 	}
 
+		
+		if (clock -> nanoseconds >= 50000000 && lastPrintSecond != clock -> seconds) {
+			print_process_table(processTable, clock);
+			lastPrintSecond = clock -> seconds;
+		}
+
 		int status;
 		pid_t finished = waitpid(-1, &status, WNOHANG);
 
 		if (finished > 0) {
 			printf("OSS: Worker PID %d finnished at time %d:%d\n", finished, clock -> seconds, clock -> nanoseconds);
 			running--;
+
+		//Clear this worker from thee process table
+		for (int k = 0; k < MAX_PROCESSES; k++) {
+			if (processTable[k].pid == finished) {
+			  processTable[k].occupied = 0;
+			  break;
+		}
+	}
 
 		if (total < n) {
 			pid_t pid = fork();
