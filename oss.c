@@ -75,6 +75,27 @@ void timeout_handler(int sig) {
 	exit(0);
 }
 
+int enough_time_passed(SystemClock *clock, int lastSec, int lastNano, double interval) {
+	int intervalSec = (int)interval;
+	int intervalNano = (int)((interval - intervalSec) * 1000000000);
+
+	int elapsedSec = clock -> seconds - lastSec;
+	int elapsedNano = clock -> nanoseconds - lastNano;
+
+	if (elapsedNano < 0) {
+		elapsedSec--;
+		elapsedNano += 1000000000;
+	}
+
+	if (elapsedSec > intervalSec) {
+		return 1;
+	}
+	if (elapsedSec == intervalSec && elapsedNano >= intervalNano) {
+		return 1;
+	}
+	return 0;
+}
+
 int main(int argc, char *argv[]) {
 	int n = 5;
 	int s = 3;
@@ -146,6 +167,8 @@ int main(int argc, char *argv[]) {
 	}
 
 	int lastPrintSecond = 0;
+	int lastLaunchSeconds = 0;
+	int lastLaunchNano = 0;
 
 	//Phase 1: Launch initial burst up to simul limit
 	while (running < s && total < n) {
@@ -202,6 +225,9 @@ int main(int argc, char *argv[]) {
 
 		running++;
 		total++;
+
+		lastLaunchSeconds = clock -> seconds;
+		lastLaunchNano = clock -> nanoseconds;
 	}
 }
 
@@ -284,6 +310,9 @@ int main(int argc, char *argv[]) {
 
 				running++;
 				total++;
+
+				lastLaunchSeconds = clock -> seconds;
+				lastLaunchNano = clock -> nanoseconds;
 			}
 		}
 	}
