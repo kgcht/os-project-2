@@ -127,15 +127,15 @@ typedef struct {
 
 I utilized Claude AI as a learning tool and coding assistant for this project.
 
-**Key Prompts Used*
+**Key Prompts Used**
 
-"How do I implement shared memory in C?" - Guidance on shmget, shmat, and shared memory operations
+- "How do I implement shared memory in C?" - Guidance on shmget, shmat, and shared memory operations
 
-"How do I make worker processes check a simulated clock?" - Implementing time-based termination without sleep()
+- "How do I make worker processes check a simulated clock?" - Implementing time-based termination without sleep()
 
-"How do I add a process table?" - Creating and managing the PCB array
+- "How do I add a process table?" - Creating and managing the PCB array
 
-"How do I implement interval-based launching?" - Adding time checks between worker launches
+- "How do I implement interval-based launching?" - Adding time checks between worker launches
 
 - Debugging and fixing compilation errors in oss.c
 
