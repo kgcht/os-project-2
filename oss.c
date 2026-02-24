@@ -248,7 +248,7 @@ int main(int argc, char *argv[]) {
 		pid_t finished = waitpid(-1, &status, WNOHANG);
 
 		if (finished > 0) {
-			printf("OSS: Worker PID %d finnished at time %d:%d\n", finished, clock -> seconds, clock -> nanoseconds);
+			printf("OSS: Worker PID %d finished at time %d:%d\n", finished, clock -> seconds, clock -> nanoseconds);
 			running--;
 
 		//Clear this worker from thee process table
